@@ -30,3 +30,25 @@ data class Line(
 data class DeparturesResponse(
     val departures: List<Departure>
 )
+
+data class Journey(
+    val tripId: String,
+    val line: Line,
+    val direction: String,
+    val stopovers: List<Stopover>
+)
+
+data class Stopover(
+    val stop: Station,
+    val plannedArrival: String?,
+    @SerializedName("arrival") val arrivalTime: String?,
+    val plannedDeparture: String?,
+    @SerializedName("departure") val departureTime: String?,
+    val arrivalDelay: Int?,
+    val departureDelay: Int?,
+    val cancelled: Boolean?
+)
+
+data class JourneyResponse(
+    val journey: Journey
+)

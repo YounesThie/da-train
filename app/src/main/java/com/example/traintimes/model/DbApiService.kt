@@ -23,6 +23,11 @@ interface DbApiService {
         @Query("duration") duration: Int = 60
     ): DeparturesResponse
 
+    @GET("trips/{id}")
+    suspend fun getJourneyDetails(
+        @Path("id", encoded = true) tripId: String
+    ): JourneyResponse
+
     companion object {
         private const val BASE_URL = "https://v6.db.transport.rest/"
 

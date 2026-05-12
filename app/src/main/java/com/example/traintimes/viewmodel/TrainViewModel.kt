@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.traintimes.model.DbApiService
+import com.example.traintimes.model.Journey
 import com.example.traintimes.model.Station
 import com.example.traintimes.model.TrainSchedule
 import com.example.traintimes.model.TrainStatus
@@ -48,6 +49,13 @@ class TrainViewModel(private val dataStore: DataStore<Preferences>) : ViewModel(
     // Defaults to Berlin Hbf, but will be updated from DataStore in init
     private val _currentStation = MutableStateFlow(Station("stop", "8011160", "Berlin Hbf"))
     val currentStation: StateFlow<Station> = _currentStation.asStateFlow()
+
+    // Journey Details
+    private val _selectedJourney = MutableStateFlow<Journey?>(null)
+    val selectedJourney: StateFlow<Journey?> = _selectedJourney.asStateFlow()
+
+    private val _isJourneyLoading = MutableStateFlow(false)
+    val isJourneyLoading: StateFlow<Boolean> = _isJourneyLoading.asStateFlow()
 
     private var autoRefreshJob: Job? = null
     private var searchJob: Job? = null
@@ -124,6 +132,25 @@ class TrainViewModel(private val dataStore: DataStore<Preferences>) : ViewModel(
         }
     }
 
+    fun loadJourney(tripId: String) {
+        viewModelScope.launch {
+            _isJourneyLoading.value = true
+            try {
+                val response = apiService.getJourneyDetails(tripId)
+                _selectedJourney.value = response.journey
+            } catch (e: Exception) {
+                // Ignore for now
+                _selectedJourney.value = null
+            } finally {
+                _isJourneyLoading.value = false
+            }
+        }
+    }
+
+    fun clearJourney() {
+        _selectedJourney.value = null
+    }
+
     fun setFilter(filter: String?) {
         _selectedFilter.value = filter
         applyFilter()
@@ -180,6 +207,7 @@ class TrainViewModel(private val dataStore: DataStore<Preferences>) : ViewModel(
 
                 TrainSchedule(
                     id = index,
+                    tripId = dep.tripId,
                     destination = dep.direction ?: "Unknown",
                     departureTime = formattedTime,
                     trackNumber = "Track ${dep.platform ?: "?"}",

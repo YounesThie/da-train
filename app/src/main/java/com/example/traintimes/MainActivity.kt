@@ -1,6 +1,7 @@
 package com.example.traintimes
 
 import android.content.Context
+import com.example.traintimes.R
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -35,6 +37,8 @@ import com.example.traintimes.model.TrainStatus
 import com.example.traintimes.ui.theme.TrainTimesTheme
 import com.example.traintimes.viewmodel.TrainViewModel
 import com.example.traintimes.viewmodel.TrainViewModelFactory
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 val Context.dataStore by preferencesDataStore(name = "settings")
 
@@ -72,8 +76,8 @@ fun MainScreen(viewModelFactory: TrainViewModelFactory) {
                 val currentDestination = navBackStackEntry?.destination
 
                 NavigationBarItem(
-                    icon = { Icon(Icons.Filled.Home, contentDescription = "Schedules") },
-                    label = { Text("Schedules") },
+                    icon = { Icon(Icons.Filled.Home, contentDescription = stringResource(id = R.string.schedules_tab)) },
+                    label = { Text(stringResource(id = R.string.schedules_tab)) },
                     selected = currentDestination?.hierarchy?.any { it.route == "schedules" } == true,
                     onClick = {
                         navController.navigate("schedules") {
@@ -86,8 +90,8 @@ fun MainScreen(viewModelFactory: TrainViewModelFactory) {
                     }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Filled.Info, contentDescription = "About") },
-                    label = { Text("About") },
+                    icon = { Icon(Icons.Filled.Info, contentDescription = stringResource(id = R.string.about_tab)) },
+                    label = { Text(stringResource(id = R.string.about_tab)) },
                     selected = currentDestination?.hierarchy?.any { it.route == "about" } == true,
                     onClick = {
                         navController.navigate("about") {
@@ -127,6 +131,9 @@ fun SchedulesScreen(viewModel: TrainViewModel) {
     val searchResults by viewModel.searchResults.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
 
+    val selectedJourney by viewModel.selectedJourney.collectAsState()
+    val isJourneyLoading by viewModel.isJourneyLoading.collectAsState()
+
     var searchQuery by remember { mutableStateOf("") }
 
     val pullToRefreshState = rememberPullToRefreshState()
@@ -153,15 +160,15 @@ fun SchedulesScreen(viewModel: TrainViewModel) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("Search station...") },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
+            placeholder = { Text(stringResource(id = R.string.search_hint)) },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = stringResource(id = R.string.search_desc)) },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = {
                         searchQuery = ""
                         viewModel.searchStations("")
                     }) {
-                        Icon(Icons.Filled.Clear, contentDescription = "Clear")
+                        Icon(Icons.Filled.Clear, contentDescription = stringResource(id = R.string.clear_desc))
                     }
                 }
             },
@@ -218,13 +225,13 @@ fun SchedulesScreen(viewModel: TrainViewModel) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (errorMessage != null && schedules.isEmpty()) {
                 Text(
-                    text = errorMessage ?: "Unknown error",
+                    text = errorMessage ?: stringResource(id = R.string.unknown_error),
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else if (!isLoading && schedules.isEmpty()) {
                 Text(
-                    text = "No departures found matching your filters.",
+                    text = stringResource(id = R.string.no_departures_found),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.Center)
@@ -238,7 +245,8 @@ fun SchedulesScreen(viewModel: TrainViewModel) {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = 8.dp)
+                                .clickable { viewModel.loadJourney(schedule.tripId) },
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -308,6 +316,65 @@ fun SchedulesScreen(viewModel: TrainViewModel) {
             )
         }
     }
+
+    // Bottom Sheet for Journey Details
+    if (isJourneyLoading || selectedJourney != null) {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.clearJourney() },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                if (isJourneyLoading) {
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(stringResource(id = R.string.loading_route))
+                        }
+                    }
+                } else if (selectedJourney != null) {
+                    val journey = selectedJourney!!
+                    Text(
+                        text = "${journey.line.name} -> ${journey.direction}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    LazyColumn {
+                        items(journey.stopovers) { stopover ->
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                                // Extract time
+                                val rawTime = stopover.departureTime ?: stopover.arrivalTime ?: stopover.plannedDeparture ?: stopover.plannedArrival
+                                val formattedTime = try {
+                                    if (rawTime != null) {
+                                        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
+                                        val date = format.parse(rawTime)
+                                        if (date != null) {
+                                            val outputFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                                            outputFormat.format(date)
+                                        } else ""
+                                    } else ""
+                                } catch(e: Exception) { "" }
+
+                                Text(
+                                    text = formattedTime,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.width(60.dp)
+                                )
+                                Text(
+                                    text = stopover.stop.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -319,12 +386,12 @@ fun AboutScreen() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Train Times App",
+            text = stringResource(id = R.string.about_title),
             style = MaterialTheme.typography.headlineMedium
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "A modern Jetpack Compose app demonstrating Material 3, Dynamic Color, MVVM architecture, and live data from the DB API. Features include station search, pull-to-refresh, auto-refresh, and transport mode filtering.",
+            text = stringResource(id = R.string.about_desc),
             style = MaterialTheme.typography.bodyLarge
         )
     }
