@@ -3,14 +3,18 @@ package com.example.traintimes
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -18,20 +22,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.traintimes.model.TrainStatus
 import com.example.traintimes.ui.theme.TrainTimesTheme
 import com.example.traintimes.viewmodel.TrainViewModel
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import com.example.traintimes.model.TrainStatus
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,7 +46,7 @@ fun MainScreen() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Train Times") },
+                title = { Text("DB Train Times (Berlin Hbf)") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -114,60 +107,74 @@ fun MainScreen() {
 @Composable
 fun SchedulesScreen(viewModel: TrainViewModel) {
     val schedules by viewModel.schedules.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)
-    ) {
-        items(schedules) { schedule ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        } else if (errorMessage != null) {
+            Text(
+                text = errorMessage ?: "Unknown error",
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                items(schedules) { schedule ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
                     ) {
-                        Text(
-                            text = schedule.destination,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = schedule.departureTime,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = schedule.trackNumber,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        val statusColor = when (schedule.status) {
-                            TrainStatus.ON_TIME -> MaterialTheme.colorScheme.primary
-                            TrainStatus.DELAYED -> MaterialTheme.colorScheme.error
-                            TrainStatus.CANCELLED -> MaterialTheme.colorScheme.error
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = schedule.destination,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = schedule.departureTime,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = schedule.trackNumber,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                val statusColor = when (schedule.status) {
+                                    TrainStatus.ON_TIME -> MaterialTheme.colorScheme.primary
+                                    TrainStatus.DELAYED -> MaterialTheme.colorScheme.error
+                                    TrainStatus.CANCELLED -> MaterialTheme.colorScheme.error
+                                }
+                                Text(
+                                    text = schedule.status.name.replace("_", " "),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = statusColor
+                                )
+                            }
                         }
-                        Text(
-                            text = schedule.status.name.replace("_", " "),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = statusColor
-                        )
                     }
                 }
             }
@@ -189,7 +196,7 @@ fun AboutScreen() {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "A modern Jetpack Compose app demonstrating Material 3, Dynamic Color, and MVVM architecture.",
+            text = "A modern Jetpack Compose app demonstrating Material 3, Dynamic Color, MVVM architecture, and live data from the DB API.",
             style = MaterialTheme.typography.bodyLarge
         )
     }
