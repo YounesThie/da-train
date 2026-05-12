@@ -7,6 +7,15 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface DbApiService {
+    @GET("locations")
+    suspend fun searchStations(
+        @Query("query") query: String,
+        @Query("results") results: Int = 10,
+        @Query("stops") stops: Boolean = true,
+        @Query("addresses") addresses: Boolean = false,
+        @Query("poi") poi: Boolean = false
+    ): List<Station>
+
     @GET("stops/{id}/departures")
     suspend fun getDepartures(
         @Path("id") stationId: String,

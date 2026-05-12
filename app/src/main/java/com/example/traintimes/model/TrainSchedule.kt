@@ -5,7 +5,9 @@ data class TrainSchedule(
     val destination: String,
     val departureTime: String,
     val trackNumber: String,
-    val status: TrainStatus
+    val status: TrainStatus,
+    val transportMode: String = "",
+    val lineName: String = ""
 )
 
 enum class TrainStatus {
