@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">TrainTimes</string>
+    <string name="schedules_tab">Schedules</string>
+    <string name="about_tab">About</string>
+    <string name="search_hint">Search station...</string>
+    <string name="search_desc">Search</string>
+    <string name="clear_desc">Clear</string>
+    <string name="no_departures_found">No departures found matching your filters.</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="about_title">Train Times App</string>
+    <string name="about_desc">A modern Jetpack Compose app demonstrating Material 3, Dynamic Color, MVVM architecture, and live data from the DB API. Features include station search, pull-to-refresh, auto-refresh, and transport mode filtering.</string>
+    <string name="route_details_title">Route Details</string>
+    <string name="loading_route">Loading route...</string>
+</resources>
