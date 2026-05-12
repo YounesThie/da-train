@@ -1,5 +1,6 @@
 package com.example.traintimes
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,16 +30,20 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.datastore.preferences.preferencesDataStore
 import com.example.traintimes.model.TrainStatus
 import com.example.traintimes.ui.theme.TrainTimesTheme
 import com.example.traintimes.viewmodel.TrainViewModel
+import com.example.traintimes.viewmodel.TrainViewModelFactory
+
+val Context.dataStore by preferencesDataStore(name = "settings")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             TrainTimesTheme {
-                MainScreen()
+                MainScreen(viewModelFactory = TrainViewModelFactory(dataStore))
             }
         }
     }
@@ -46,9 +51,9 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(viewModelFactory: TrainViewModelFactory) {
     val navController = rememberNavController()
-    val viewModel: TrainViewModel = viewModel()
+    val viewModel: TrainViewModel = viewModel(factory = viewModelFactory)
     val currentStation by viewModel.currentStation.collectAsState()
 
     Scaffold(
@@ -215,6 +220,13 @@ fun SchedulesScreen(viewModel: TrainViewModel) {
                 Text(
                     text = errorMessage ?: "Unknown error",
                     color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            } else if (!isLoading && schedules.isEmpty()) {
+                Text(
+                    text = "No departures found matching your filters.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else {
